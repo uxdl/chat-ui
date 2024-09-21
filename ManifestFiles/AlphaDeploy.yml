@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "chat-ui"
+  namespace: alpha
+spec:
+  selector:
+    matchLabels:
+      app: "chat-ui"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: "chat-ui"
+    spec:
+      containers:
+      - name: "chat-ui"
+        imagePullPolicy: Always
+        image: 975049956765.dkr.ecr.ap-south-1.amazonaws.com/chat-ui:latest
+        ports:
+        - containerPort: 9000
