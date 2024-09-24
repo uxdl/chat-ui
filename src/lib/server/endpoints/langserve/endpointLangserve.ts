@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Endpoint } from "../endpoints";
 import type { TextGenerationStreamOutput } from "@huggingface/inference";
 import { logger } from "$lib/server/logger";
+import { v4 as uuidv4 } from "uuid";
 
 export const endpointLangserveParametersSchema = z.object({
 	weight: z.number().int().positive().default(1),
@@ -23,6 +24,11 @@ export function endpointLangserve(
 			preprompt,
 			model,
 		});
+		let fileValues = [];
+		if (messages[2] && messages[2].files && messages[2].files.length > 0) {
+			// Extract the 'value's from the files in messages[2].files
+			fileValues = messages[2].files.map((file) => file.value);
+		}
 
 		const r = await fetch(`${url}/stream`, {
 			method: "POST",
@@ -30,7 +36,10 @@ export function endpointLangserve(
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
-				input: { text: prompt },
+				message: prompt,
+				model: "gpt-4o",
+				thread_id: uuidv4(),
+				file_hashes: fileValues,
 			}),
 		});
 
@@ -76,7 +85,7 @@ export function endpointLangserve(
 					accumulatedData = accumulatedData.substring(endIndex + 1);
 
 					// Stopping with end event
-					if (eventData.startsWith("event: end")) {
+					if (eventData.startsWith("data: [DONE]")) {
 						stop = true;
 						yield {
 							token: {
@@ -92,10 +101,9 @@ export function endpointLangserve(
 						continue;
 					}
 
-					if (eventData.startsWith("event: data") && jsonString.startsWith("data: ")) {
+					if (jsonString.startsWith('data: {"type": "token"')) {
 						jsonString = jsonString.slice(6);
 						let data = null;
-
 						// Handle the parsed data
 						try {
 							data = JSON.parse(jsonString);
@@ -106,11 +114,11 @@ export function endpointLangserve(
 						}
 						// Assuming content within data is a plain string
 						if (data) {
-							generatedText += data;
+							generatedText += data["content"];
 							const output: TextGenerationStreamOutput = {
 								token: {
 									id: tokenId++,
-									text: data,
+									text: data["content"],
 									logprob: 0,
 									special: false,
 								},

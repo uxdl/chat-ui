@@ -18,12 +18,28 @@ export async function uploadFile(file: File, conv: Conversation): Promise<Messag
 	upload.write((await file.arrayBuffer()) as unknown as Buffer);
 	upload.end();
 
-	// only return the filename when upload throws a finish event or a 20s time out occurs
-	return new Promise((resolve, reject) => {
-		upload.once("finish", () =>
-			resolve({ type: "hash", value: sha, mime: file.type, name: file.name })
-		);
+	// Prepare the form data to send the file to the backend API
+	const formData = new FormData();
+	formData.append("file", file, file.name);
+	formData.append("file_id", sha);
+
+	// Wrap the upload and fetch operations in promises
+	const uploadPromise = new Promise<void>((resolve, reject) => {
+		upload.once("finish", resolve);
 		upload.once("error", reject);
-		setTimeout(() => reject(new Error("Upload timed out")), 20_000);
 	});
+
+	const fetchPromise = fetch("http://localhost:8000/embed", {
+		method: "POST",
+		body: formData,
+	}).then((response) => {
+		if (!response.ok) {
+			throw new Error(`Failed to upload file to backend API: ${response.statusText}`);
+		}
+	});
+
+	// Wait for both the upload and fetch operations to complete
+	await Promise.all([uploadPromise, fetchPromise]);
+
+	return { type: "hash", value: sha, mime: file.type, name: file.name };
 }

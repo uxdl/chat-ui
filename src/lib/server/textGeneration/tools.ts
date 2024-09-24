@@ -286,5 +286,6 @@ function externalToToolCall(call: ExternalToolCall, tools: Tool[]): ToolCall | u
 	return {
 		name: call.tool_name,
 		parameters: parametersWithDefaults,
+		correlationKey: undefined,
 	};
 }
