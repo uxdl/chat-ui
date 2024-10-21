@@ -24,10 +24,12 @@ export function endpointLangserve(
 			preprompt,
 			model,
 		});
-		let fileValues = [];
+		let fileValues: string[] = [];
+		let fileNames: string[] = [];
 		if (messages[2] && messages[2].files && messages[2].files.length > 0) {
 			// Extract the 'value's from the files in messages[2].files
 			fileValues = messages[2].files.map((file) => file.value);
+			fileNames = messages[2].files.map((file) => file.name);
 		}
 
 		const r = await fetch(`${url}/stream`, {
@@ -40,6 +42,7 @@ export function endpointLangserve(
 				model: "gpt-4o",
 				thread_id: uuidv4(),
 				file_hashes: fileValues,
+				file_names: fileNames,
 			}),
 		});
 
